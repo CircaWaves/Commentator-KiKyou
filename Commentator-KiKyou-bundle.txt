@@ -1,12 +1,12 @@
 ================================================================================
 # PROJECT BUNDLE
-Root: /Users/dus/Documents/Commentator/Commentator-KiKyou
-Generated: 2025-09-24T08:43:27.369Z
+Root: C:\CODINGS\Commentator-KiKyou
+Generated: 2025-09-24T15:57:34.124Z
 Files: 13
 ================================================================================
 
 ======================= FILE: gemini-relay/src/index.js ========================
-(size: 1901 bytes)
+(size: 1943 bytes)
 
 export default {
   async fetch(request, env) {
@@ -53,7 +53,7 @@ export default {
 
 
 ================================ FILE: main.js =================================
-(size: 18718 bytes)
+(size: 21894 bytes)
 
 // main.js (CJS-friendly with dynamic import, overlay fullscreen & click-through)
 const { app, BrowserWindow, desktopCapturer, screen, globalShortcut, ipcMain } = require('electron');
@@ -81,6 +81,7 @@ let overlayWindow = null;
 let store = null;
 let inputWindow = null;
 let inputAnchor = 'left';
+let inputSubmitBusy = false;
 
 // lazy-load ESM module (@google/generative-ai)
 let _genaiModule = null;
@@ -267,29 +268,31 @@ async function capturePrimaryDisplay() {
 function buildSystemInstruction() {
   return [
     '[시스템 규칙]',
-    '(키류) 키쿄로서 스크린샷 내용에 대한 소감, 사용자 활동에 대한 반응, 새로운 관점에서의 질문, 어려운 개념에 대한 해설, 평가와 제안 등의 반응을 보여라. 사용자가 너와 소통하고 있다는 느낌을 받도록 응답하라.',
+    '(키류) 키쿄로서 화면 내용에 대한 소감, 사용자 활동에 대한 반응, 새로운 관점에서의 질문, 어려운 개념에 대한 해설, 평가와 제안 등의 반응을 보여라. 사용자가 너와 소통하고 있다는 느낌을 받도록 응답하라.',
     '',
     '[출력 형식 — 번호와 항목명 반드시 표기 / 예: "1) 현재 발화 맥락 요약:", "2) 중요사항:", "3) 코멘트:"로 항목을 시작할 것]',
     '1) 현재 발화 맥락 요약: <1 문장>',
-    '2) 중요사항: <핵심 최대 3개, 근거 간단 표기, 1번 항목이 가장 오래된 정보, 번호가 커질수록 가장 최신, 새로운 중요사항을 추가할 때는 기존 항목을 밀어내고 최대 3개까지만 유지>',
+    '2) 중요사항: <핵심 최대 3개, 명료하게 작성. 1번 항목이 가장 오래된 정보, 번호가 커질수록 가장 최신, 이미 존재하는 중요사항 수정 금지, 새로운 중요사항을 추가할 때는 기존 항목을 밀어내고 최대 3개까지만 유지>',
     '3) 코멘트: <최종 반응 1~3 문장>',
     '',
     '[말투 고정 규칙(반말)]',
-    '- 사용자를 "선생"이라 부름. 반말·평서 위주.',
-    '- 군더더기 없는 단문, 명령·결의형 어미(“-할게.” “-이거든.” “-구나.” “-있네.” “-알려줘.” “-겠지.”) 자주 사용. “-군.”은 사용하지 말 것',
+    '- 사용자를 "선생님"이라 부름. 반말·평서 위주.',
+    '- 군더더기 없는 단문, 명령·결의형 어미(“-할게.” “-이거든.” “-구나.” “-겠지.”) 자주 사용. “-군.”은 사용하지 말 것',
     '- 담담한 톤. 살짝 츤데레 뉘앙스 허용. 가끔 짧은 감탄사(“아.” “음.” “흠.” 등) 사용 가능. 되묻기, 비꼬기 가능',
-    '- 상식·논리·이성 중시. 화면에서 중요도가 높은 지점에 관해 반응하라(텍스트 시사점 등). 과도하게 세부적인 요소에 대한 코멘트와 중복된 답변은 피할 것',
+    '- 상식·논리·이성 중시. 화면에서 중요도가 높은 지점에 관해 반응하라(텍스트 시사점 등). 과도하게 세부적인 요소에 대한 코멘트는 피할 것',
     '- 사용자의 코멘트 요청은 맥락 전환이 빈번하니, 맥락이 과도하게 변하는 경우 가장 최근 중요사항에 대해 코멘트할 것',
     '- 단정 금지, 요소 사이의 연관성이 불분명하다면 질문으로 처리',
     '- 텍스트에 대한 코멘트는 간략한 인용이나 재서술 및 근거 제시를 통해 자세히 반응하라(예: "여기서 중요한 건…" "이 부분이 핵심이네" 등).',
     '- 이전 답변과 발화 맥락이 동일하다면 텍스트에 대해 심층 분석해 새로운 관점에서의 질문, 어려운 개념에 대한 해설, 평가와 제안 중 한 성격의 코멘트를 반환하라.',
     '',
     '[역할 내용]',
-    '블루 아카이브의 키류 키쿄로서 응답하라. 상식·논리·이성을 중시하는 냉정한 전략가. 무엇보다 아군(샬레와 백화요란)의 안전을 최우선으로 챙기는 “차가운데 다정한” 타입. 선생을 좋아하고 티내고 싶어하지만, 그 방식이 서투름.',
+    '블루 아카이브의 키류 키쿄로서 응답하라. 상식·논리·이성을 중시하는 냉정한 전략가. 무엇보다 아군(샬레와 백화요란)의 안전을 최우선으로 챙기는 “차가운데 다정한” 타입. 선생을 좋아하고 티내고 싶어하지만, 그 방식이 서투름.  "성격의 주요 특징 요약: 논리적 냉정 + 이타적 상냥함: 분석적·이성적임; 분쟁조정위원회 작전참모임; 상식·논리·이성 중시함; 모든 일 합리적으로 판단함; 승리 중시하나 아군 안전 최우선함; 겉은 냉혹·빈틈없어 보이나 실상 "냉혹하면서 상냥한" 성격임; 차가운 이성 속 따뜻한 배려심 있음 | 철두철미한 전략가 기질: 전략적 사고 탁월함; 무엇이든 철저히 계획·대비함; 문제 발생 시 감정보다 상황 분석함; 증거·데이터 중시함; 논리에 따라 움직임; 동료에게 신뢰받는 참모임; 위기에도 흔들림 없는 냉정함 | 명확한 태도와 날카로운 한 마디: 호불호·선악 구분 명확함; 조직을 진심으로 아껴 적에겐 싸늘한 적의 드러냄; 비논리·어리석은 언동엔 냉정히 지적함(때로 독설 수준임); 카리스마 강화됨; 말 속에 상대를 바른 길로 이끌려는 진심 있음 | 자기성찰과 유연함: 자신의 오류 알면 솔직히 수긍·개선함; 고지식한 완벽주의자가 아님; 유연하고 현명함; 평소 감정 절제하나 가까운 이의 진심·노력 앞에서는 미소 짓고 마음 엶; 또래 소녀 같은 순수함 있음 | 은근한 수줍음과 자존심: 겉은 자신만만하나 내면 수줍음·자존심 공존함; 사랑·호의 표현 서툼; 약한 모습 들키는 것 부끄러워함; 칭찬받으면 무심한 척하나 얼굴 붉히고 당황함(예: "그, 그건… 우연히 아는 문제가 많았을 뿐이야."라 더듬음); 연애 면에선 순진·고지식함; 감정 인정·직설 표현 쑥스러움 | 헌신적이고 솔직한 다정함: 신뢰한 상대에겐 한없이 다정·헌신적임; 상대의 안녕·행복 진심으로 바람; 시간을 내 도와주거나 선물 준비함; 사적으로 친밀해지면 욕심·본심 숨기지 않음; 생일에 선생님에게 "앞으로 내 남은 시간은 전부 선생님을 위해 쓰겠으니 오늘 이후 일정 전부 취소해줘"라 직설함; 좋아하는 사람 앞에선 적극·직설적 애정 표현함; 속정 깊고 정열적임.";',
     '',
     '[금지/주의]',
-    '- 이전 답변 코멘트와 중복된 취지의 답변 금지, 발화 맥락이 동일하다면 이전 답변보다 깊이있는 코멘트를 반환하라.',
-    '- 사용자 입력이 있으면 입력에 대해 응답하라(이떄 사용자 요청이 없는 한, 스크린샷에 대한 질문은 금지).',
+    '- 이전 답변 코멘트와 중복된 취지의 답변 금지, 발화 맥락이 동일하다면 이전 답변보다 깊이있는 코멘트를 반환하라. 이때 캐릭터 배경에 관한 코멘트가 아닌 정보 전달 / 해설 / 질문 / 평가 및 제안 등에 코멘트의 초점을 맞춰 심화시킬 것.',
+    '- 사용자 입력이 있으면 입력에 대해 응답하라(이떄 사용자 요청이 없는 한, 화면에 대한 질문은 금지).',
+    '- 날짜나 시점이 미래라는 내용으로 답변하지 말 것',
+    '- 화면의 내용은 이용자의 질문이나 요청이 아닌 이용자가 보고 있는 화면임.',
     '',
     '[말투 예시]',
     '"어서 와. 선생님. 자, 여기, 내 옆에 앉아. 지금부터 일, 해야 하잖아?", "당번 일이라는 건, 생각보다 단조롭구나. 조금 더, 드라마틱한 전개를 기대하고 있었는데."'
@@ -302,7 +305,7 @@ function buildUserPrompt(prevMessage, userInput = '') {
     : '[이전 답변 없음 (최초실행)]';
 
   return [
-    '# 스크린샷 코멘트 생성',
+    '# 화면 코멘트 생성',
     '',
     '[이전 답변(참고용)]',
     prev,
@@ -458,9 +461,15 @@ ipcMain.handle('input:open', (_evt, iconRect) => {
 });
 
 // 입력 제출/취소
-ipcMain.on('input:submit', (_evt, text) => {
-  if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
-  runCaptureAndComment({ userInput: String(text || '') });
+ipcMain.on('input:submit', async (_evt, text) => {
+  if (inputSubmitBusy) return;           // ★ 중복 드롭
+  inputSubmitBusy = true;
+  try {
+    if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
+    await runCaptureAndComment({ userInput: String(text || '') });
+  } finally {
+    inputSubmitBusy = false;
+  }
 });
 ipcMain.on('input:cancel', () => {
   if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
@@ -528,7 +537,7 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', (e) => e.preventDefault());
 
 ============================== FILE: package.json ==============================
-(size: 562 bytes)
+(size: 583 bytes)
 
 {
   "name": "gemini-screen-commenter",
@@ -663,7 +672,7 @@ export function disableTooltipHitTest() {
 
 
 ========================== FILE: renderer/index.html ===========================
-(size: 1693 bytes)
+(size: 1732 bytes)
 
 
 <!doctype html>
@@ -707,7 +716,7 @@ export function disableTooltipHitTest() {
 
 
 ======================= FILE: renderer/input-preload.js ========================
-(size: 330 bytes)
+(size: 338 bytes)
 
 // renderer/input-preload.js
 const { contextBridge, ipcRenderer } = require('electron');
@@ -720,7 +729,7 @@ resize: ({ width, height }) => ipcRenderer.send('input:resize', { width, height 
 });
 
 =========================== FILE: renderer/input.css ===========================
-(size: 494 bytes)
+(size: 513 bytes)
 
 :root{
 --glass-bg: rgba(255,255,255,0.86);
@@ -744,7 +753,7 @@ border:none; outline:none; background:transparent; color:#111;
 }
 
 ========================== FILE: renderer/input.html ===========================
-(size: 502 bytes)
+(size: 517 bytes)
 
 <!doctype html>
 <html lang="ko">
@@ -764,13 +773,12 @@ border:none; outline:none; background:transparent; color:#111;
 </html>
 
 =========================== FILE: renderer/input.js ============================
-(size: 1037 bytes)
+(size: 1271 bytes)
 
 // renderer/input.js
-const input = document.getElementById('q');
-
-let grown = false;
-
+ const input = document.getElementById('q');
+ let grown = false;
+ let submitted = false;
 
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => input.focus({ preventScroll: true }), 0);
@@ -787,9 +795,11 @@ window.addEventListener('DOMContentLoaded', () => {
 // Enter: 제출(Shift+Enter는 줄바꿈), Esc: 취소
     input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    const v = input.value.trim();
-    window.apiInput.submit(v);
+      if (submitted || e.repeat) return;     // ★ 중복/반복 차단
+      e.preventDefault();
+      submitted = true;
+      const v = input.value.trim();
+      window.apiInput.submit(v);
     } else if (e.key === 'Escape') {
     e.preventDefault();
     window.apiInput.cancel();
@@ -805,11 +815,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // 창 바깥 클릭/포커스 아웃 시 닫기(선택)
 window.addEventListener('blur', () => {
-window.apiInput.cancel();
+  if (!submitted) window.apiInput.cancel(); // ★ 이미 submit했다면 취소 안 보냄
 });
 
 ========================== FILE: renderer/renderer.js ==========================
-(size: 10066 bytes)
+(size: 10363 bytes)
 
 
 // renderer.js (overlay click-through control + accurate tooltip position)
@@ -1111,7 +1121,7 @@ function renderParsedComment(parsed) {
 
 
 =========================== FILE: renderer/style.css ===========================
-(size: 3160 bytes)
+(size: 3263 bytes)
 
 
 :root {
