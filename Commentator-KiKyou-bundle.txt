@@ -1,7 +1,7 @@
 ================================================================================
 # PROJECT BUNDLE
 Root: C:\CODINGS\Commentator-KiKyou
-Generated: 2025-09-24T15:57:34.124Z
+Generated: 2025-09-24T16:34:40.449Z
 Files: 13
 ================================================================================
 
@@ -53,7 +53,7 @@ export default {
 
 
 ================================ FILE: main.js =================================
-(size: 21894 bytes)
+(size: 21871 bytes)
 
 // main.js (CJS-friendly with dynamic import, overlay fullscreen & click-through)
 const { app, BrowserWindow, desktopCapturer, screen, globalShortcut, ipcMain } = require('electron');
@@ -169,7 +169,7 @@ async function runCaptureAndComment({ userInput = '' } = {}) {
  const userPrompt = buildUserPrompt(prevMessage, userInput);
 
  const raw = await generateCommentWithGemini({ dataURL, systemInstruction, userPrompt });
- const commentOnly = padForTooltipLeftClip(extractCommentOnly(raw));
+ const commentOnly = extractCommentOnly(raw);
 
  const createdAt = Date.now();
  const rec = {
@@ -582,7 +582,7 @@ contextBridge.exposeInMainWorld('api', {
 
 
 =============================== FILE: README.md ================================
-(size: 859 bytes)
+(size: 829 bytes)
 
 
 # Gemini Screen Commenter (Electron) — v2
@@ -611,8 +611,7 @@ npm run start
 - **click-through**: 아이콘만 포인터 허용, 나머지는 아래 앱으로 전달
 - 툴팁 첫 표시 시 **크기 측정 후 정확 위치**
 - 캡처는 **주 모니터(display_id 매칭)** 우선
-#   C o m m e n t a t o r  
- 
+
 
 ========================== FILE: renderer/hittest.js ===========================
 (size: 1529 bytes)
@@ -819,7 +818,7 @@ window.addEventListener('blur', () => {
 });
 
 ========================== FILE: renderer/renderer.js ==========================
-(size: 10363 bytes)
+(size: 10333 bytes)
 
 
 // renderer.js (overlay click-through control + accurate tooltip position)
@@ -858,9 +857,7 @@ window.api.onStatus(({ status }) => {
 window.api.onComment((rec) => {
   spinnerEl.classList.add('hidden');
 
-  // ⬇️ 전체 대신 '코멘트만'
-  const commentOnly = extractCommentOnly(rec.message);
-  showTooltip(commentOnly); // isHTML 옵션 없이 순수 텍스트로
+  showTooltip(rec.message);
 
   if (hideTimer) clearTimeout(hideTimer);
   hideTimer = setTimeout(() => hideTooltip(), TTL_MS);
@@ -995,7 +992,10 @@ function escapeHTML(s) {
 }
 
 function extractCommentOnly(raw){
-  const text = String(raw ?? '').replace(/\r\n?/g, '\n').trim();
+ // NBSP(\u00A0)는 남기고 일반 공백만 트림
+ const text = String(raw ?? '')
+   .replace(/\r\n?/g, '\n')
+   .replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, ''); // NBSP 제외
 
   // 1순위: 기존 파서를 통과해 3) 코멘트가 있으면 그거만
   const parsed = parseComment(text);
@@ -1121,7 +1121,7 @@ function renderParsedComment(parsed) {
 
 
 =========================== FILE: renderer/style.css ===========================
-(size: 3263 bytes)
+(size: 3282 bytes)
 
 
 :root {
@@ -1212,7 +1212,7 @@ html, body {
 
 .tooltip { cursor: pointer; }  /* 클릭하면 닫힌다는 걸 시각적으로 암시 */
 
-#tooltip-text { white-space: pre-wrap; word-break: break-word; }
+#tooltip-text { white-space: pre-wrap; word-break: break-word; padding-left: 6px; }
 
 .tooltip .sect { margin-top: 6px; }
 .tooltip .sect:first-child { margin-top: 0; }
