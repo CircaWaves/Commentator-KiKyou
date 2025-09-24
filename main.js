@@ -24,6 +24,7 @@ let overlayWindow = null;
 let store = null;
 let inputWindow = null;
 let inputAnchor = 'left';
+let inputSubmitBusy = false;
 
 // lazy-load ESM module (@google/generative-ai)
 let _genaiModule = null;
@@ -236,7 +237,6 @@ function buildSystemInstruction() {
     '',
     '[말투 예시]',
     '"어서 와. 선생님. 자, 여기, 내 옆에 앉아. 지금부터 일, 해야 하잖아?", "당번 일이라는 건, 생각보다 단조롭구나. 조금 더, 드라마틱한 전개를 기대하고 있었는데."'
-
   ].join('\n');
 }
 
@@ -402,9 +402,15 @@ ipcMain.handle('input:open', (_evt, iconRect) => {
 });
 
 // 입력 제출/취소
-ipcMain.on('input:submit', (_evt, text) => {
-  if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
-  runCaptureAndComment({ userInput: String(text || '') });
+ipcMain.on('input:submit', async (_evt, text) => {
+  if (inputSubmitBusy) return;           // ★ 중복 드롭
+  inputSubmitBusy = true;
+  try {
+    if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
+    await runCaptureAndComment({ userInput: String(text || '') });
+  } finally {
+    inputSubmitBusy = false;
+  }
 });
 ipcMain.on('input:cancel', () => {
   if (inputWindow && !inputWindow.isDestroyed()) inputWindow.close();
